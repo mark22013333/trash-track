@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
 import app as trash_track
+from config import get_settings
+from location_service import extract_road_lane, index_location_options
 
 
 SAMPLE_ROWS = [
@@ -31,6 +33,21 @@ SAMPLE_ROWS = [
 
 
 class RouteLogicTests(unittest.TestCase):
+    def test_full_taiwan_address_extracts_road_and_lane(self):
+        self.assertEqual(
+            ("西盛街", "33巷2弄"),
+            extract_road_lane("新北市新莊區西盛街33巷2弄8號"),
+        )
+
+    def test_location_index_lists_only_lanes_seen_in_stops(self):
+        options = index_location_options([
+            {"name": "西盛街33巷2弄8號"},
+            {"name": "西盛街33巷10號"},
+            {"name": "民安路20號"},
+        ])
+        self.assertEqual(["33巷", "33巷2弄"], options["西盛街"])
+        self.assertEqual([], options["民安路"])
+
     def test_route_options_are_deduplicated_and_stably_sorted(self):
         index = trash_track.build_route_index(SAMPLE_ROWS)
         self.assertEqual(["B002", "A001"], [item["lineid"] for item in index.route_summaries])
@@ -139,6 +156,8 @@ class ApiTests(unittest.TestCase):
             response = self.client.get("/")
         self.assertEqual(200, response.status_code)
         self.assertIn(b'"mapsApiKeyConfigured": false', response.data)
+        self.assertIn(b'data-map-type="satellite"', response.data)
+        self.assertIn(b'id="street-view-button"', response.data)
 
     def test_status_does_not_leak_google_maps_key(self):
         secret = "not-for-output-super-secret"
@@ -147,6 +166,64 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         self.assertNotIn(secret.encode(), response.data)
         self.assertTrue(response.json["googleMapsApiKeyConfigured"])
+
+    def test_regions_lists_all_counties_and_districts(self):
+        response = self.client.get("/api/regions")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(22, response.json["countyCount"])
+        self.assertEqual(368, response.json["districtCount"])
+        new_taipei = next(item for item in response.json["counties"] if item["name"] == "新北市")
+        self.assertTrue(new_taipei["capabilities"]["liveGps"])
+
+    def test_location_options_lists_roads_from_cleanup_stops(self):
+        response = self.client.get("/api/location-options?county=新北市&district=新莊區")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["民安路", "西盛街"], response.json["options"])
+
+    def test_nearby_uses_post_and_returns_global_route_key(self):
+        response = self.client.post("/api/nearby", json={
+            "county": "新北市", "district": "新莊區", "road": "西盛街", "limit": 2,
+        })
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(2, len(response.json["stops"]))
+        self.assertTrue(response.json["stops"][0]["routeKey"].startswith("newtaipei:"))
+        self.assertEqual("sameRoad", response.json["matchQuality"])
+
+    def test_unknown_lane_falls_back_to_same_road_instead_of_false_no_result(self):
+        response = self.client.post("/api/nearby", json={
+            "county": "新北市", "district": "新莊區", "road": "西盛街", "lane": "999巷",
+        })
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("sameRoad", response.json["matchQuality"])
+        self.assertGreater(len(response.json["stops"]), 0)
+
+    def test_unsupported_county_never_claims_there_is_no_truck(self):
+        response = self.client.post("/api/nearby", json={
+            "county": "臺北市", "district": "信義區", "road": "市府路",
+        })
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("sourceUnavailable", response.json["answer"]["status"])
+        self.assertFalse(response.json["capabilities"]["schedule"])
+
+    def test_nearby_rejects_ambiguous_or_mismatched_district(self):
+        response = self.client.post("/api/nearby", json={
+            "county": "新北市", "district": "信義區", "road": "市府路",
+        })
+        self.assertEqual(400, response.status_code)
+
+
+class ConfigurationTests(unittest.TestCase):
+    def test_environment_overrides_defaults_and_invalid_radius_falls_back(self):
+        with patch.dict(os.environ, {
+            "GOOGLE_MAPS_API_KEY": "browser-key",
+            "GOOGLE_MAPS_MAP_ID": "map-id",
+            "GOOGLE_PLACES_ENABLED": "false",
+            "DEFAULT_SEARCH_RADIUS_METERS": "not-a-number",
+        }, clear=True):
+            settings = get_settings()
+        self.assertEqual("browser-key", settings.google_maps_api_key)
+        self.assertEqual(600, settings.default_search_radius_meters)
+        self.assertFalse(settings.places_available)
 
 
 if __name__ == "__main__":

@@ -27,12 +27,16 @@ call :log "[資訊] 本次 LOG：%LOG_FILE%"
 
 if defined GOOGLE_MAPS_API_KEY (
     call :log "[通過] 已設定 Google Maps API 金鑰"
+) else if exist ".env" (
+    call :log "[通過] 已找到 .env 地圖設定檔"
 ) else (
-    call :log "[警告] 尚未設定 GOOGLE_MAPS_API_KEY；網站仍可查看路線列表，但不會顯示地圖。"
-    call :log "[設定] 請先執行：set GOOGLE_MAPS_API_KEY=你的金鑰"
+    call :log "[警告] 尚未找到 GOOGLE_MAPS_API_KEY 或 .env；網站仍可查詢時刻，但不會顯示地圖。"
+    call :log "[設定] 請複製 .env.example 為 .env，再填入金鑰。"
 )
 if defined GOOGLE_MAPS_MAP_ID (
     call :log "[通過] 已設定 Google Maps Map ID"
+) else if exist ".env" (
+    call :log "[通過] 將從 .env 讀取 Google Maps Map ID"
 ) else (
     call :log "[警告] 尚未設定 GOOGLE_MAPS_MAP_ID；Advanced Marker 地圖將不會啟用。"
     call :log "[設定] 請先執行：set GOOGLE_MAPS_MAP_ID=你的 Map ID"
@@ -109,7 +113,7 @@ if errorlevel 1 (
     )
 )
 
-"%VENV_PYTHON%" -c "import flask, requests" >nul 2>&1
+"%VENV_PYTHON%" -c "import flask, requests, dotenv" >nul 2>&1
 if errorlevel 1 (
     call :log "[設定] 正在安裝必要套件，首次執行可能需要一些時間…"
     "%VENV_PYTHON%" -m pip install -r "requirements.txt" >>"%LOG_FILE%" 2>&1
@@ -118,7 +122,15 @@ if errorlevel 1 (
         exit /b 1
     )
 ) else (
-    call :log "[通過] Flask 與 requests 已安裝"
+    call :log "[通過] Flask、requests 與 python-dotenv 已安裝"
+)
+if not exist "collector.py" (
+    call :fail "找不到 collector.py。"
+    exit /b 1
+)
+if not exist "service_runner.py" (
+    call :fail "找不到 service_runner.py。"
+    exit /b 1
 )
 
 set "APP_PORT=5000"
@@ -136,7 +148,7 @@ if not errorlevel 1 (
 :port_ready
 call :log "[通過] 連接埠 %APP_PORT% 可以使用"
 call :log "[啟動] 網站網址：http://localhost:%APP_PORT%"
-call :log "[提示] 按 Ctrl+C 可停止服務；伺服器輸出會持續寫入本次 LOG。"
+call :log "[提示] 按 Ctrl+C 可一併停止網站與 GPS 蒐集器；輸出會持續寫入本次 LOG。"
 echo.
 
 set "PYTHONUTF8=1"
@@ -148,13 +160,13 @@ set "TRASHTRACK_LOG_FILE=%LOG_FILE%"
 where powershell >nul 2>&1
 if errorlevel 1 goto start_without_tee
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "^& $env:TRASHTRACK_PYTHON 'app.py' 2^>^&1 ^| Tee-Object -FilePath $env:TRASHTRACK_LOG_FILE -Append; exit $LASTEXITCODE"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "^& $env:TRASHTRACK_PYTHON 'service_runner.py' 2^>^&1 ^| Tee-Object -FilePath $env:TRASHTRACK_LOG_FILE -Append; exit $LASTEXITCODE"
 set "SERVER_EXIT=%ERRORLEVEL%"
 goto server_stopped
 
 :start_without_tee
 call :log "[警告] 找不到 PowerShell，伺服器輸出只會顯示於目前視窗。"
-"%VENV_PYTHON%" "app.py"
+"%VENV_PYTHON%" "service_runner.py"
 set "SERVER_EXIT=%ERRORLEVEL%"
 
 :server_stopped

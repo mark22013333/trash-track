@@ -6,3 +6,8 @@ __pycache__/
 .pytest_cache/
 output/
 logs/
+.env
+.env.local
+.env.*.local
+data/*.sqlite3
+data/*.sqlite3-*

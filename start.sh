@@ -33,21 +33,22 @@ log "[啟動] TrashTrack 前置檢查開始"
 log "[資訊] 專案目錄：$SCRIPT_DIR"
 log "[資訊] 本次 LOG：$LOG_FILE"
 
-if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
-  log "[警告] 尚未設定 GOOGLE_MAPS_API_KEY；網站仍可查看路線列表，但不會顯示地圖。"
-  log "[設定] 請先執行：export GOOGLE_MAPS_API_KEY=\"你的金鑰\""
+if [[ -z "${GOOGLE_MAPS_API_KEY:-}" && ! -f "$SCRIPT_DIR/.env" ]]; then
+  log "[警告] 尚未找到 GOOGLE_MAPS_API_KEY 或 .env；網站仍可查詢時刻，但不會顯示地圖。"
+  log "[設定] 請複製 .env.example 為 .env，再填入金鑰。"
 else
-  log "[通過] 已設定 Google Maps API 金鑰"
+  log "[通過] 已找到環境變數或 .env 地圖設定"
 fi
 
-if [[ -z "${GOOGLE_MAPS_MAP_ID:-}" ]]; then
+if [[ -z "${GOOGLE_MAPS_MAP_ID:-}" && ! -f "$SCRIPT_DIR/.env" ]]; then
   log "[警告] 尚未設定 GOOGLE_MAPS_MAP_ID；Advanced Marker 地圖將不會啟用。"
   log "[設定] 請先執行：export GOOGLE_MAPS_MAP_ID=\"你的 Map ID\""
 else
   log "[通過] 已設定 Google Maps Map ID"
 fi
 
-[[ -f "$SCRIPT_DIR/app.py" ]] || fail "找不到 app.py，請確認腳本位於專案根目錄。"
+[[ -f "$SCRIPT_DIR/app.py" && -f "$SCRIPT_DIR/collector.py" && -f "$SCRIPT_DIR/service_runner.py" ]] \
+  || fail "找不到網站或 GPS 蒐集器程式，請確認腳本位於專案根目錄。"
 [[ -f "$SCRIPT_DIR/requirements.txt" ]] || fail "找不到 requirements.txt。"
 
 SYSTEM_PYTHON=""
@@ -86,14 +87,14 @@ if ! "$VENV_PYTHON" -m pip --version >/dev/null 2>&1; then
   [[ $pip_status -eq 0 ]] || fail "pip 建立失敗。"
 fi
 
-if ! "$VENV_PYTHON" -c 'import flask, requests' >/dev/null 2>&1; then
+if ! "$VENV_PYTHON" -c 'import flask, requests, dotenv' >/dev/null 2>&1; then
   log "[設定] 正在安裝必要套件，首次執行可能需要一些時間…"
   "$VENV_PYTHON" -m pip install -r "$SCRIPT_DIR/requirements.txt" 2>&1 | tee -a "$LOG_FILE"
   install_status=${PIPESTATUS[0]}
   [[ $install_status -eq 0 ]] \
     || fail "套件安裝失敗。請檢查網路連線及上方 pip 訊息。"
 else
-  log "[通過] Flask 與 requests 已安裝"
+  log "[通過] Flask、requests 與 python-dotenv 已安裝"
 fi
 
 port_is_used() {
@@ -110,13 +111,13 @@ fi
 
 log "[通過] 連接埠 $APP_PORT 可以使用"
 log "[啟動] 網站網址：http://localhost:$APP_PORT"
-log "[提示] 按 Ctrl+C 可停止服務；伺服器輸出會持續寫入本次 LOG。"
+log "[提示] 按 Ctrl+C 可一併停止網站與 GPS 蒐集器；輸出會持續寫入本次 LOG。"
 printf '\n'
 
 export PYTHONUTF8=1
 export PYTHONIOENCODING=utf-8
 export PORT="$APP_PORT"
-"$VENV_PYTHON" "$SCRIPT_DIR/app.py" 2>&1 | tee -a "$LOG_FILE"
+"$VENV_PYTHON" "$SCRIPT_DIR/service_runner.py" 2>&1 | tee -a "$LOG_FILE"
 server_status=${PIPESTATUS[0]}
 
 if [[ $server_status -eq 0 || $server_status -eq 130 ]]; then

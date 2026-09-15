@@ -3,113 +3,170 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#123b3a">
-    <title>新莊區垃圾車即時動態｜新北清運觀測站</title>
+    <meta name="theme-color" content="#153a36">
+    <meta name="description" content="輸入台灣地址，查詢今天是否有垃圾車與附近清運停靠點。">
+    <title>倒垃圾了嗎？｜全台清運地址查詢</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   </head>
   <body>
+    <a class="skip-link" href="#address-search">跳到地址查詢</a>
     <header class="masthead">
-      <a class="brand" href="/" aria-label="回首頁">
-        <span class="brand-mark" aria-hidden="true">環</span>
-        <span>新北清運觀測站</span>
+      <a class="brand" href="/" aria-label="倒垃圾了嗎？首頁">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><strong>倒垃圾了嗎？</strong><small>TRASHTRACK · TAIWAN</small></span>
       </a>
-      <span class="live-badge"><i></i> 官方資料同步</span>
+      <span class="source-badge"><i></i> 官方資料整合</span>
     </header>
 
     <main>
       <section class="hero" aria-labelledby="page-title">
         <div class="hero-copy">
-          <p class="eyebrow">XINZHUANG · LIVE ROUTE</p>
-          <h1 id="page-title">新莊區<br><em>垃圾車即時動態</em></h1>
-          <p id="page-intro" class="intro">先以西盛街相關路線開場，也可以搜尋新莊區任何官方清運路線。少一點追車，多一點從容。</p>
+          <p class="eyebrow">今晚，不必追著音樂跑</p>
+          <h1 id="page-title">垃圾車今天<br><em>會經過我家嗎？</em></h1>
+          <p class="intro">輸入地址，我們先告訴你「今天有沒有」，再列出附近可以倒垃圾的時間與地點。</p>
+          <div class="coverage-note"><span>22</span><p><strong>縣市地址選擇</strong><br>即時與時刻依官方開放程度標示</p></div>
         </div>
 
-        <form id="search-form" class="search-panel" role="search">
-          <label for="district">
-            <span>行政區</span>
-          </label>
-          <input id="district" name="district" maxlength="20" value="{{ default_district }}" autocomplete="address-level-3" required>
-
-          <div class="combobox-field">
-            <label id="route-label" for="route-search"><span>選擇垃圾車路線</span></label>
-            <div class="combobox-shell">
-              <input
-                id="route-search"
-                type="text"
-                role="combobox"
-                aria-labelledby="route-label"
-                aria-controls="route-options"
-                aria-expanded="false"
-                aria-autocomplete="list"
-                autocomplete="off"
-                placeholder="搜尋路線名稱或編號"
-              >
-              <button id="route-toggle" type="button" aria-label="展開路線選項" tabindex="-1">⌄</button>
+        <div class="search-card" id="address-search">
+          <div class="search-step"><span>01</span><p>你從哪裡出發？</p></div>
+          <form id="address-form" role="search">
+            <label class="field-label" for="address-input">住家地址或附近地標</label>
+            <div id="places-field" class="address-field">
+              <span class="pin" aria-hidden="true"></span>
+              <input id="address-input" type="search" autocomplete="street-address" placeholder="例如：新北市新莊區西盛街" aria-describedby="address-help">
             </div>
-            <div id="route-options" class="route-options" role="listbox" aria-labelledby="route-label" hidden></div>
-            <p id="route-help" class="field-help" role="status">正在載入新莊區路線…</p>
-          </div>
+            <p id="address-help" class="field-help">可輸入完整地址；若地址建議未啟用，也能直接搜尋或手動選擇。</p>
+            <button class="primary-action" type="submit"><span>查今天的垃圾車</span><b aria-hidden="true">→</b></button>
 
-          <button id="show-default" class="secondary-action" type="button">查看西盛街相關路線 <span aria-hidden="true">↗</span></button>
+            <details id="manual-panel" class="manual-panel">
+              <summary>手動選擇縣市、道路與巷弄</summary>
+              <div class="manual-grid">
+                <label><span>縣市</span><select id="county" autocomplete="address-level1"></select></label>
+                <label><span>鄉鎮市區</span><select id="district" autocomplete="address-level2"></select></label>
+                <label><span>路／街</span><input id="road" list="road-options" autocomplete="address-line1" placeholder="選擇或輸入道路"><datalist id="road-options"></datalist></label>
+                <label><span>巷／弄（選填）</span><input id="lane" list="lane-options" placeholder="整條路／無巷"><datalist id="lane-options"></datalist></label>
+              </div>
+              <p id="option-status" class="option-status" role="status">正在準備全台行政區…</p>
+              <button id="manual-search" class="outline-action" type="button">使用這個地點查詢</button>
+            </details>
+
+            <label class="remember"><input id="remember-location" type="checkbox"><span>只在這台裝置記住這個地點</span></label>
+          </form>
+        </div>
+      </section>
+
+      <section id="answer-section" class="answer-section" aria-live="polite">
+        <div id="answer-card" class="answer-card idle">
+          <div class="answer-orbit" aria-hidden="true"><span></span></div>
+          <div class="answer-copy">
+            <p id="answer-kicker">READY WHEN YOU ARE</p>
+            <h2 id="answer-title">先告訴我你在哪裡</h2>
+            <p id="answer-detail">地址不會儲存在伺服器，也不會出現在網址列。</p>
+          </div>
+          <div id="next-collection" class="next-collection" hidden>
+            <span>下一個表定時間</span><strong id="next-time">—</strong><p id="next-place">—</p>
+          </div>
+        </div>
+
+        <div id="result-meta" class="result-meta" hidden>
+          <div><span>查詢位置</span><strong id="query-location">—</strong></div>
+          <div><span>資料性質</span><strong id="data-capability">—</strong></div>
+          <div><span>更新時間</span><strong id="updated-at">—</strong></div>
+        </div>
+
+        <div id="source-handoff" class="source-handoff" hidden>
+          <div><p>官方來源尚未提供穩定介接</p><strong>我們幫你保留地點，但不會把「沒有資料」說成「沒有垃圾車」。</strong></div>
+          <a id="official-link" href="https://hwms.moenv.gov.tw/dispPageBox/route/routeCP.aspx?ddsPageID=ROUTE" target="_blank" rel="noopener">前往環境管理署全國查詢 <span aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+
+      <section id="nearby-section" class="nearby-section" hidden aria-labelledby="nearby-title">
+        <div class="section-heading">
+          <div><span>02</span><p>WALKABLE OPTIONS</p><h2 id="nearby-title">附近可以去哪裡倒？</h2></div>
+          <p id="match-note">依同巷弄、同一路段與距離排序</p>
+        </div>
+        <div id="stop-list" class="stop-cards"></div>
+      </section>
+
+      <section class="map-section" aria-labelledby="map-title">
+        <div class="section-heading">
+          <div><span>03</span><p>MAP AFTER THE ANSWER</p><h2 id="map-title">看位置，不猜距離</h2></div>
+          <div class="map-heading-tools">
+            <div class="map-mode-switch" role="group" aria-label="地圖顯示方式">
+              <button type="button" data-map-type="roadmap" aria-pressed="true">一般</button>
+              <button type="button" data-map-type="satellite" aria-pressed="false">衛星</button>
+              <button id="street-view-button" type="button" aria-pressed="false" disabled>街景</button>
+            </div>
+            <div class="legend"><span><i class="home-dot"></i>你的地點</span><span><i class="stop-dot"></i>清運點</span><span id="live-legend" hidden><i class="truck-dot"></i>即時車位</span></div>
+          </div>
+        </div>
+        <p id="street-view-status" class="street-view-status" role="status"></p>
+        <section id="live-panel" class="live-panel" hidden aria-labelledby="live-title">
+          <div class="live-panel-head">
+            <div><span>LIVE ROUTE</span><h3 id="live-title">路線即時監控</h3><p id="live-status" role="status">正在取得官方 GPS…</p></div>
+            <button id="live-close" type="button" aria-label="關閉即時監控">關閉</button>
+          </div>
+          <div class="live-controls">
+            <label><span>垃圾車</span><select id="live-vehicle"></select></label>
+            <label><span>軌跡日期</span><select id="live-date"></select></label>
+            <div class="live-signal"><span>資料訊號</span><strong id="live-age">等待資料</strong></div>
+          </div>
+          <div class="live-facts">
+            <div><span>推估下一站</span><strong id="live-next-stop">暫時無法可靠推估</strong><p id="live-next-detail">不提供未經資料支持的 ETA</p></div>
+            <div><span>圖層說明</span><strong>虛線是表定站序／實線是實際 GPS</strong><p>站點連線不代表實際行駛道路，距離皆為直線距離。</p></div>
+          </div>
+        </section>
+        <div id="map" aria-label="附近垃圾清運停靠點地圖">
+          <div id="map-message" class="map-message"><strong>先完成地址查詢</strong><span>有可靠座標時，這裡才會顯示距離與清運點。</span></div>
+        </div>
+        <section id="camera-panel" class="camera-panel" hidden aria-labelledby="camera-title">
+          <div class="camera-heading"><div><span>PUBLIC TRAFFIC VIEW</span><h3 id="camera-title">附近交通路況影像</h3></div><p id="camera-status" role="status"></p></div>
+          <div id="camera-list" class="camera-grid"></div>
+          <p class="camera-disclaimer">畫面來自公開交通路況攝影機，不保證拍攝到垃圾車，也不是警方治安監視器。</p>
+        </section>
+      </section>
+
+      <details class="advanced-panel">
+        <summary><span>進階查詢</span><strong>我知道垃圾車路線編號</strong></summary>
+        <form id="route-form">
+          <label><span>新北市行政區</span><input id="route-district" value="{{ default_district }}" maxlength="20"></label>
+          <label><span>路線編號或道路</span><input id="route-query" placeholder="例如 242051 或西盛街"></label>
+          <button type="submit">開啟既有路線資料</button>
         </form>
-      </section>
-
-      <section class="dashboard" aria-live="polite">
-        <div class="status-strip">
-          <div><span class="metric-label">顯示路線</span><strong id="route-count">—</strong><small>條</small></div>
-          <div><span class="metric-label">實體站點</span><strong id="stop-count">—</strong><small>站</small></div>
-          <div><span class="metric-label">出勤車輛</span><strong id="truck-count">—</strong><small>台</small></div>
-          <div class="update-cell"><span class="metric-label">本頁資料更新</span><time id="updated-at">載入中…</time></div>
-        </div>
-
-        <div id="notice" class="notice loading" role="status">
-          <span class="notice-icon" aria-hidden="true">◌</span>
-          <div><strong>正在取得清運資訊</strong><p>第一次載入路線資料可能需要幾秒鐘。</p></div>
-        </div>
-
-        <div class="map-frame">
-          <div class="map-heading">
-            <div><span class="section-index">01</span><h2>清運動態地圖</h2></div>
-            <div class="legend"><span><i class="dot stop-dot"></i>清運站</span><span><i class="dot truck-dot"></i>垃圾車</span></div>
-          </div>
-          <div id="map" aria-label="垃圾車與清運站地圖">
-            <div id="map-message" class="map-message"><strong>地圖準備中</strong><span>路線資料就緒後才會載入地圖，替你的瀏覽器省點力氣。</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="content-grid">
-        <div class="panel trucks-panel">
-          <div class="section-title"><span class="section-index">02</span><div><p>LIVE VEHICLES</p><h2>目前出勤</h2></div></div>
-          <div id="truck-list" class="card-list"><div class="skeleton-card"></div></div>
-        </div>
-        <div class="panel routes-panel">
-          <div class="section-title"><span class="section-index">03</span><div><p>SCHEDULE</p><h2 id="route-list-title">路線與站點</h2></div></div>
-          <div id="route-list" class="route-list"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
-        </div>
-      </section>
+        <div id="advanced-result" class="advanced-result" aria-live="polite"></div>
+      </details>
     </main>
 
     <footer>
-      <p>資料來源：新北市政府資料開放平臺</p>
-      <p>GPS 約每數分鐘更新；非清運時段查無車輛是正常狀況。</p>
+      <p><strong>TrashTrack</strong> 把官方資料翻成今晚用得上的答案。</p>
+      <p>全台行政區：內政部國土測繪中心 · 清運資料：各地官方開放資料</p>
     </footer>
 
     <script>
       window.TRASH_TRACK_CONFIG = {{ {
+        "defaultCounty": default_county,
         "defaultDistrict": default_district,
         "defaultStreet": default_street,
+        "defaultRadius": default_radius,
+        "maxRadius": max_radius,
+        "resultLimit": result_limit,
         "mapsApiKeyConfigured": google_maps_api_key | length > 0,
         "mapsMapIdConfigured": google_maps_map_id | length > 0,
-        "mapsMapId": google_maps_map_id
+        "placesEnabled": google_places_enabled,
+        "mapsLanguage": google_maps_language,
+        "mapsRegion": google_maps_region,
+        "mapsMapId": google_maps_map_id,
+        "livePollSeconds": live_poll_seconds,
+        "trackRetentionDays": track_retention_days,
+        "cameraRadiusMeters": camera_radius_meters
       } | tojson }};
     </script>
     {% if google_maps_api_key %}
     <script>
-      (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await(a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key: {{ google_maps_api_key | tojson }}, v: "weekly", language: "zh-TW", region: "TW"});
+      (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await(a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key: {{ google_maps_api_key | tojson }}, v: "weekly", language: {{ google_maps_language | tojson }}, region: {{ google_maps_region | tojson }}});
     </script>
     {% endif %}
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
