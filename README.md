@@ -14,7 +14,34 @@
 - 取得失敗後 30 秒內不重複撞擊官方 API，避免服務異常時放大流量。
 - 非清運時段查無出勤車輛時，正常回傳 HTTP 200 與空陣列。
 
-## 安裝
+## 一鍵啟動（建議）
+
+腳本會自動檢查 Python 3.9+、建立 `.venv`、安裝缺少的套件、檢查 5000 埠，並將啟動及伺服器輸出寫入 `logs/`。
+
+### Windows
+
+直接雙擊 `start.bat`，或在命令提示字元執行：
+
+```bat
+start.bat
+```
+
+腳本使用 UTF-8 主控台與 Windows CRLF 換行，支援中文訊息及包含空白的專案路徑。
+
+### macOS / Linux
+
+首次執行先賦予權限，之後直接執行：
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+啟動成功後依腳本顯示的網址開啟，預設為 <http://localhost:5000>。若 5000 已被占用（macOS 的 AirPlay 接收器很常見），腳本會自動改用 <http://localhost:5001>。
+
+按 `Ctrl+C` 可停止服務。每次執行的 LOG 位於 `logs/server-年月日-時間.log`。
+
+## 手動安裝
 
 需要 Python 3.9 以上版本。
 
@@ -34,7 +61,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 啟動
+## 手動啟動
 
 ```bash
 python app.py

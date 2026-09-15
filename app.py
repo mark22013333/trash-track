@@ -24,6 +24,7 @@ TRUCK_API_URL = f"{OPEN_DATA_BASE_URL}/api/datasets/{TRUCK_DATASET_ID}/json"
 
 DEFAULT_DISTRICT = "新莊區"
 DEFAULT_STREET = "西盛街"
+LOCAL_PORT = int(os.getenv("PORT", "5000"))
 ROUTE_CACHE_SECONDS = 43_200
 TRUCK_CACHE_SECONDS = 120
 FAILED_REFRESH_RETRY_SECONDS = 30
@@ -437,4 +438,4 @@ def api_status():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=LOCAL_PORT, debug=True)
