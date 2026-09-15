@@ -1,22 +1,50 @@
 # TrashTrack｜新北市垃圾車即時動態
 
-以「新莊區／西盛街」為預設條件，動態搜尋新北市垃圾車路線、表定清運站與目前出勤車輛。後端使用 Flask 與記憶體快取，前端使用原生 HTML、CSS、JavaScript、Leaflet 與 OpenStreetMap，不需要 Node.js、資料庫或編譯流程。
+以「新莊區／西盛街」作為預設情境，並可搜尋、切換新莊區官方清運路線。後端使用 Flask、requests 與記憶體快取；前端使用原生 HTML、CSS、JavaScript 和 Google Maps JavaScript API，不需要 Node.js、npm、資料庫或前端編譯流程。
 
 ## 功能
 
-- 依行政區與道路名稱動態找出所有相關 `lineid`，不硬編碼路線。
-- 以 `lineid` 串接表定路線與即時 GPS。
-- 地圖顯示相關清運站及出勤垃圾車。
-- 依最近站點與清運順序推估下一站，並顯示距離。
-- 依台灣時間顯示今日一般垃圾、資源回收與廚餘清運狀態。
-- 瀏覽器每 30 秒更新；路線快取 12 小時、GPS 快取 120 秒。
-- 官方 API 暫時失敗時，優先顯示舊快取並標示資料可能過期。
-- 取得失敗後 30 秒內不重複撞擊官方 API，避免服務異常時放大流量。
-- 非清運時段查無出勤車輛時，正常回傳 HTTP 200 與空陣列。
+- 依路線名稱或 `lineid` 即時篩選官方路線；選項資料每個行政區只載入一次。
+- 路線選擇支援鍵盤上下鍵、Enter、Escape 與完整 combobox ARIA 語意。
+- 選定 `lineid` 後顯示該路線完整站點；網址會保留條件，重新整理後可恢復。
+- 首次畫面透過單一 `/api/dashboard` 取得路線、站點與車輛，避免重複處理路線資料。
+- 12 小時路線快取會同步建立 `lineid`、摘要與街道搜尋索引；GPS 使用 120 秒快取。
+- 清運站依正規化座標與站名去重；同一實體站點會整合各路線、順序與表定時間。
+- Google Maps 使用 `AdvancedMarkerElement`、單一 `InfoWindow`，並延遲至地圖接近可視區域才載入。
+- 車輛每 30 秒更新位置；既有 Marker 只改座標，離線車輛才移除，不重新建立地圖或調整視野。
+- 頁面隱藏時暫停輪詢，回到頁面後立即更新；快速切換路線會中止舊請求。
+- 官方 API 暫時失敗時優先顯示舊快取，且 30 秒內不重複撞擊失敗端點。
 
-## 一鍵啟動（建議）
+## Google Maps 設定
 
-腳本會自動檢查 Python 3.9+、建立 `.venv`、安裝缺少的套件、檢查 5000 埠，並將啟動及伺服器輸出寫入 `logs/`。
+未設定 Google Maps 時仍可啟動網站及查看路線、站點與車輛列表；地圖區會顯示設定提示。
+
+### macOS / Linux
+
+```bash
+export GOOGLE_MAPS_API_KEY="你的 API 金鑰"
+export GOOGLE_MAPS_MAP_ID="你的 Map ID"
+```
+
+### Windows cmd
+
+```bat
+set GOOGLE_MAPS_API_KEY=你的 API 金鑰
+set GOOGLE_MAPS_MAP_ID=你的 Map ID
+```
+
+Google Maps JavaScript API 必須啟用 billing，載入地圖可能產生費用。正式環境的 API 金鑰務必：
+
+- 設定 HTTP referrer 網站限制。
+- API 限制只允許 Maps JavaScript API。
+- localhost 與正式網域最好分開使用不同金鑰管理。
+- 不要將真實金鑰寫入程式碼、Git、LOG 或公開設定檔。
+
+Map ID 是 Advanced Marker 的必要設定。本專案不會自動使用 `DEMO_MAP_ID` 冒充正式設定。
+
+## 一鍵啟動
+
+腳本會檢查 Python 3.9+、建立 `.venv`、安裝缺少套件、檢查連接埠，並將啟動與伺服器輸出寫入 `logs/`。缺少 Google Maps 設定時只會警告，不會阻止啟動。
 
 ### Windows
 
@@ -26,50 +54,43 @@
 start.bat
 ```
 
-腳本使用 UTF-8 主控台與 Windows CRLF 換行，支援中文訊息及包含空白的專案路徑。
+腳本維持 UTF-8 主控台與 Windows CRLF 換行。
 
 ### macOS / Linux
-
-首次執行先賦予權限，之後直接執行：
 
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
 
-啟動成功後依腳本顯示的網址開啟，預設為 <http://localhost:5000>。若 5000 已被占用（macOS 的 AirPlay 接收器很常見），腳本會自動改用 <http://localhost:5001>。
+腳本維持 LF 與 executable 權限。預設網址為 <http://localhost:5000>；若該連接埠被占用，會嘗試 5001。
 
-按 `Ctrl+C` 可停止服務。每次執行的 LOG 位於 `logs/server-年月日-時間.log`。
-
-## 手動安裝
+## 手動安裝與啟動
 
 需要 Python 3.9 以上版本。
 
-### Windows
-
 ```bash
-python -m venv venv
-venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### macOS / Linux
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-## 手動啟動
-
-```bash
 python app.py
 ```
 
-開啟：<http://localhost:5000>
+Windows 啟用虛擬環境請改用 `.venv\Scripts\activate`。第一次取得新莊區約 4,696 筆站點可能需要幾秒鐘。
 
-第一次取得垃圾車路線資料可能稍慢。垃圾車 GPS 約每數分鐘更新；非清運時間沒有垃圾車 GPS 資料屬於正常狀況。
+## API
+
+- `GET /api/route-options?district=新莊區`
+- `GET /api/dashboard?district=新莊區&lineid=242051`
+- `GET /api/routes?district=新莊區&lineid=242051`
+- `GET /api/trucks?district=新莊區&lineid=242051`
+- `GET /api/routes?district=新莊區&street=西盛街`
+- `GET /api/trucks?district=新莊區&street=西盛街`
+- `GET /api/status`
+
+不存在或不屬於指定行政區的 `lineid` 會回傳 HTTP 200、`routeCount: 0` 與空陣列，方便前端一致處理；不會發生 500。舊有 `district + street` 查詢仍維持相容。
+
+`/api/status` 只會回傳 Google Maps API key／Map ID 是否設定，不會回傳實際值。
 
 ## 測試
 
@@ -77,31 +98,10 @@ python app.py
 python -m unittest discover -s tests -v
 ```
 
-## API
+測試涵蓋路線去重與排序、精確路線、未知路線、舊街道查詢、dashboard 單次索引存取、實體站點去重、舊快取備援與 Google Maps 設定安全性。
 
-- `GET /api/routes?district=新莊區&street=西盛街`
-- `GET /api/trucks?district=新莊區&street=西盛街`
-- `GET /api/status`
+## 官方資料與部署提醒
 
-查詢參數會去除前後空白，行政區最長 20 字、道路名稱最長 50 字。
+資料來自新北市政府資料開放平臺。GPS 資料只包含目前出勤車輛，非清運時段回傳零筆是正常狀況。程式保留 TLS 主機名稱、有效期與憑證授權單位驗證，僅相容部分 Python／OpenSSL 對政府憑證鏈非關鍵 X.509 延伸欄位的嚴格檢查。
 
-## 官方 API 實測紀錄
-
-2026-09-15 實測新北市政府資料開放平臺：
-
-- 兩個端點皆回傳 HTTP 200 與 JSON 陣列。
-- `page` 從 0 起算，`size` 會限制每頁筆數。
-- 路線 API 的 `$filter=city eq 新莊區` 可用；程式仍保留篩選失效時的全量分頁與 Python 端過濾備援。
-- 經緯度、`rank` 均以字串回傳，程式會安全轉型；空值或無效座標會被略過。
-- GPS 時間格式為 `YYYY/MM/DD HH:MM:SS`，表定時間格式為 `HH:MM`。
-- 星期清運欄位實際值為 `Y` 或空字串；程式亦相容 `1/0`、`是/否` 等常見值。
-- GPS 資料只包含目前出勤車輛，零筆是正常結果。
-- Python 3.14／OpenSSL 嚴格模式會因官方憑證鏈缺少 Subject Key Identifier 而拒絕連線；程式僅停用該項嚴格延伸欄位檢查，仍保留主機名稱、有效期與憑證授權單位驗證，未使用 `verify=False`。
-
-## 部署提醒
-
-`python app.py` 使用 Flask 開發伺服器，適合本機操作。正式上線時請改用支援 WSGI 的正式伺服器，並依部署環境設定反向代理與 HTTPS。
-
-## 後續可擴充
-
-到站倒數、PWA、歷史軌跡、收藏地址與 LINE 通知可在核心資料穩定後再加入。
+`python app.py` 是 Flask 開發伺服器，適合本機操作；正式部署請改用 WSGI 伺服器、反向代理與 HTTPS。

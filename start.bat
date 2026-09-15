@@ -25,6 +25,19 @@ call :log "[啟動] TrashTrack 前置檢查開始"
 call :log "[資訊] 專案目錄：%CD%"
 call :log "[資訊] 本次 LOG：%LOG_FILE%"
 
+if defined GOOGLE_MAPS_API_KEY (
+    call :log "[通過] 已設定 Google Maps API 金鑰"
+) else (
+    call :log "[警告] 尚未設定 GOOGLE_MAPS_API_KEY；網站仍可查看路線列表，但不會顯示地圖。"
+    call :log "[設定] 請先執行：set GOOGLE_MAPS_API_KEY=你的金鑰"
+)
+if defined GOOGLE_MAPS_MAP_ID (
+    call :log "[通過] 已設定 Google Maps Map ID"
+) else (
+    call :log "[警告] 尚未設定 GOOGLE_MAPS_MAP_ID；Advanced Marker 地圖將不會啟用。"
+    call :log "[設定] 請先執行：set GOOGLE_MAPS_MAP_ID=你的 Map ID"
+)
+
 if not exist "app.py" (
     call :fail "找不到 app.py，請確認 start.bat 位於專案根目錄。"
     exit /b 1

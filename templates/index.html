@@ -4,11 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#123b3a">
-    <title>新莊西盛街垃圾車即時動態</title>
+    <title>新莊區垃圾車即時動態｜新北清運觀測站</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynhTTxcwBNhMZbMZ4nOlQpHOYk=" crossorigin="">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   </head>
   <body>
@@ -24,26 +23,44 @@
       <section class="hero" aria-labelledby="page-title">
         <div class="hero-copy">
           <p class="eyebrow">XINZHUANG · LIVE ROUTE</p>
-          <h1 id="page-title">新莊西盛街<br><em>垃圾車即時動態</em></h1>
-          <p class="intro">把清運路線、表定站點與出勤車輛放在同一張地圖上。少一點追車，多一點從容。</p>
+          <h1 id="page-title">新莊區<br><em>垃圾車即時動態</em></h1>
+          <p id="page-intro" class="intro">先以西盛街相關路線開場，也可以搜尋新莊區任何官方清運路線。少一點追車，多一點從容。</p>
         </div>
 
         <form id="search-form" class="search-panel" role="search">
-          <label>
+          <label for="district">
             <span>行政區</span>
-            <input id="district" name="district" maxlength="20" value="{{ default_district }}" required>
           </label>
-          <label>
-            <span>道路名稱</span>
-            <input id="street" name="street" maxlength="50" value="{{ default_street }}" required>
-          </label>
-          <button type="submit">查詢清運動態 <span aria-hidden="true">↗</span></button>
+          <input id="district" name="district" maxlength="20" value="{{ default_district }}" autocomplete="address-level-3" required>
+
+          <div class="combobox-field">
+            <label id="route-label" for="route-search"><span>選擇垃圾車路線</span></label>
+            <div class="combobox-shell">
+              <input
+                id="route-search"
+                type="text"
+                role="combobox"
+                aria-labelledby="route-label"
+                aria-controls="route-options"
+                aria-expanded="false"
+                aria-autocomplete="list"
+                autocomplete="off"
+                placeholder="搜尋路線名稱或編號"
+              >
+              <button id="route-toggle" type="button" aria-label="展開路線選項" tabindex="-1">⌄</button>
+            </div>
+            <div id="route-options" class="route-options" role="listbox" aria-labelledby="route-label" hidden></div>
+            <p id="route-help" class="field-help" role="status">正在載入新莊區路線…</p>
+          </div>
+
+          <button id="show-default" class="secondary-action" type="button">查看西盛街相關路線 <span aria-hidden="true">↗</span></button>
         </form>
       </section>
 
       <section class="dashboard" aria-live="polite">
         <div class="status-strip">
-          <div><span class="metric-label">相關路線</span><strong id="route-count">—</strong><small>條</small></div>
+          <div><span class="metric-label">顯示路線</span><strong id="route-count">—</strong><small>條</small></div>
+          <div><span class="metric-label">實體站點</span><strong id="stop-count">—</strong><small>站</small></div>
           <div><span class="metric-label">出勤車輛</span><strong id="truck-count">—</strong><small>台</small></div>
           <div class="update-cell"><span class="metric-label">本頁資料更新</span><time id="updated-at">載入中…</time></div>
         </div>
@@ -58,7 +75,9 @@
             <div><span class="section-index">01</span><h2>清運動態地圖</h2></div>
             <div class="legend"><span><i class="dot stop-dot"></i>清運站</span><span><i class="dot truck-dot"></i>垃圾車</span></div>
           </div>
-          <div id="map" aria-label="垃圾車與清運站地圖"></div>
+          <div id="map" aria-label="垃圾車與清運站地圖">
+            <div id="map-message" class="map-message"><strong>地圖準備中</strong><span>路線資料就緒後才會載入地圖，替你的瀏覽器省點力氣。</span></div>
+          </div>
         </div>
       </section>
 
@@ -68,7 +87,7 @@
           <div id="truck-list" class="card-list"><div class="skeleton-card"></div></div>
         </div>
         <div class="panel routes-panel">
-          <div class="section-title"><span class="section-index">03</span><div><p>SCHEDULE</p><h2>路線與站點</h2></div></div>
+          <div class="section-title"><span class="section-index">03</span><div><p>SCHEDULE</p><h2 id="route-list-title">路線與站點</h2></div></div>
           <div id="route-list" class="route-list"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
         </div>
       </section>
@@ -79,10 +98,20 @@
       <p>GPS 約每數分鐘更新；非清運時段查無車輛是正常狀況。</p>
     </footer>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-      window.TRASH_TRACK_DEFAULTS = {{ {"district": default_district, "street": default_street} | tojson }};
+      window.TRASH_TRACK_CONFIG = {{ {
+        "defaultDistrict": default_district,
+        "defaultStreet": default_street,
+        "mapsApiKeyConfigured": google_maps_api_key | length > 0,
+        "mapsMapIdConfigured": google_maps_map_id | length > 0,
+        "mapsMapId": google_maps_map_id
+      } | tojson }};
     </script>
+    {% if google_maps_api_key %}
+    <script>
+      (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await(a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key: {{ google_maps_api_key | tojson }}, v: "weekly", language: "zh-TW", region: "TW"});
+    </script>
+    {% endif %}
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
   </body>
 </html>

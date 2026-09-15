@@ -33,6 +33,20 @@ log "[啟動] TrashTrack 前置檢查開始"
 log "[資訊] 專案目錄：$SCRIPT_DIR"
 log "[資訊] 本次 LOG：$LOG_FILE"
 
+if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+  log "[警告] 尚未設定 GOOGLE_MAPS_API_KEY；網站仍可查看路線列表，但不會顯示地圖。"
+  log "[設定] 請先執行：export GOOGLE_MAPS_API_KEY=\"你的金鑰\""
+else
+  log "[通過] 已設定 Google Maps API 金鑰"
+fi
+
+if [[ -z "${GOOGLE_MAPS_MAP_ID:-}" ]]; then
+  log "[警告] 尚未設定 GOOGLE_MAPS_MAP_ID；Advanced Marker 地圖將不會啟用。"
+  log "[設定] 請先執行：export GOOGLE_MAPS_MAP_ID=\"你的 Map ID\""
+else
+  log "[通過] 已設定 Google Maps Map ID"
+fi
+
 [[ -f "$SCRIPT_DIR/app.py" ]] || fail "找不到 app.py，請確認腳本位於專案根目錄。"
 [[ -f "$SCRIPT_DIR/requirements.txt" ]] || fail "找不到 requirements.txt。"
 
