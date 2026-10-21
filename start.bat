@@ -160,7 +160,7 @@ set "TRASHTRACK_LOG_FILE=%LOG_FILE%"
 where powershell >nul 2>&1
 if errorlevel 1 goto start_without_tee
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "^& $env:TRASHTRACK_PYTHON 'service_runner.py' 2^>^&1 ^| Tee-Object -FilePath $env:TRASHTRACK_LOG_FILE -Append; exit $LASTEXITCODE"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Console]::OutputEncoding = [Text.Encoding]::UTF8; $enc = New-Object Text.UTF8Encoding $false; & $env:TRASHTRACK_PYTHON 'service_runner.py' 2>&1 | ForEach-Object { $line = [string]$_; Write-Host $line; [IO.File]::AppendAllText($env:TRASHTRACK_LOG_FILE, $line + [Environment]::NewLine, $enc) }; exit $LASTEXITCODE"
 set "SERVER_EXIT=%ERRORLEVEL%"
 goto server_stopped
 
